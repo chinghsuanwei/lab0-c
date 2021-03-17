@@ -12,18 +12,37 @@
 queue_t *q_new()
 {
     queue_t *q = malloc(sizeof(queue_t));
-    /* TODO: What if malloc returned NULL? */
+
+    if (q == NULL)
+        return NULL;
+
     q->head = NULL;
     q->tail = NULL;
     q->size = 0;
     return q;
 }
+/*
+void q_dump(queue_t *q)
+{
+    if (q == NULL)
+        return;
+
+    list_ele_t *cur = q->head;
+    printf("[");
+    while (cur != NULL) {
+        printf("%s, ", cur->value);
+        cur = cur->next;
+    }
+    printf("\n");
+}
+*/
 
 /* Free all storage used by queue */
 void q_free(queue_t *q)
 {
-    /* TODO: How about freeing the list elements and the strings? */
-    /* Free queue structure */
+    if (q == NULL)
+        return;
+
     list_ele_t *cur = q->head;
     while (cur) {
         list_ele_t *next = cur->next;
@@ -43,19 +62,32 @@ void q_free(queue_t *q)
  */
 bool q_insert_head(queue_t *q, char *s)
 {
+    if (q == NULL)
+        return false;
+
     list_ele_t *newh;
-    /* TODO: What should you do if the q is NULL? */
     newh = malloc(sizeof(list_ele_t));
 
+    if (newh == NULL)
+        return false;
 
-    /* What if either call to malloc returns NULL? */
     unsigned int size = strlen(s) + 1;
     char *value = malloc(size * sizeof(char));
+
+    if (value == NULL) {
+        free(newh);
+        return false;
+    }
+
     memset(value, '\0', size);
-    strncpy(s, value, size);
+    strncpy(value, s, size);
     newh->value = value;
     newh->next = q->head;
+
     q->head = newh;
+    if (q->size == 0) {
+        q->tail = newh;
+    }
 
     q->size++;
     return true;
@@ -70,20 +102,34 @@ bool q_insert_head(queue_t *q, char *s)
  */
 bool q_insert_tail(queue_t *q, char *s)
 {
-    /* TODO: You need to write the complete code for this function */
-    /* Remember: It should operate in O(1) time */
-    /* TODO: Remove the above comment when you are about to implement. */
+    if (q == NULL)
+        return false;
+
     list_ele_t *newh = malloc(sizeof(list_ele_t));
 
-    /* What if either call to malloc returns NULL? */
+    if (newh == NULL)
+        return false;
+
     unsigned int size = strlen(s) + 1;
     char *value = malloc(size * sizeof(char));
+
+    if (value == NULL) {
+        free(newh);
+        return false;
+    }
+
     memset(value, '\0', size);
-    strncpy(s, value, size);
+    strncpy(value, s, size);
     newh->value = value;
     newh->next = NULL;
-    q->tail->next = newh;
-    q->tail = NULL;
+
+    if (q->size == 0) {
+        q->head = newh;
+        q->tail = newh;
+    } else {
+        q->tail->next = newh;
+        q->tail = newh;
+    }
 
     q->size++;
 
@@ -100,15 +146,21 @@ bool q_insert_tail(queue_t *q, char *s)
  */
 bool q_remove_head(queue_t *q, char *sp, size_t bufsize)
 {
-    /* TODO: You need to fix up this code. */
-    /* TODO: Remove the above comment when you are about to implement. */
     if (q == NULL || q->size == 0)
         return false;
 
-    free(q->head->value);
-    list_ele_t *tmp = q->head;
-    q->head = q->head->next;
-    free(tmp);
+    list_ele_t *node = q->head;
+
+    if (sp != NULL) {
+        unsigned int size = strlen(node->value);
+        unsigned int min = size < bufsize - 1 ? size : bufsize - 1;
+        strncpy(sp, node->value, min);
+        sp[min] = '\0';
+    }
+
+    free(node->value);
+    q->head = node->next;
+    free(node);
 
     if (q->size == 1) {
         q->tail = NULL;
@@ -143,15 +195,86 @@ void q_reverse(queue_t *q)
     q->tail = cur;
     list_ele_t *pre = cur;
     cur = pre->next;
-    list_ele_t *next = cur->next;
+    pre->next = NULL;
 
-    while (cur) {
+    do {
+        list_ele_t *next = cur->next;
         cur->next = pre;
         pre = cur;
         cur = next;
-        next = next->next;
+    } while (cur);
+}
+
+/*
+void q_insertion_sort(queue_t *q)
+{
+    // insertion sort
+    list_ele_t **cur_head = &q->head;
+
+    // For q->head
+    list_ele_t *min_pre_node = q->head;
+    list_ele_t *min_node = min_pre_node->next;
+
+    for (int i = 1; i < q->size; i++) {
+        list_ele_t *pre = *(cur_head);
+        list_ele_t *cur = pre->next;
+        list_ele_t *min_pre_node = pre;
+        list_ele_t *min_node = min_pre_node->next;
+        bool changed = false;
+        char *value = pre->value;
+        do {
+            if (strcmp(value, min_node->value) > 0) {
+                min_node = cur;
+                min_pre_node = pre;
+                changed = true;
+            }
+            pre = cur;
+            cur = cur->next;
+        } while (cur);
+
+        printf("%s\n", min_node->value);
+        if (changed) {
+            min_pre_node->next = min_node->next;
+            min_node->next = (*cur_head)->next;
+            (*cur_head)->next = min_node;
+            cur_head = &min_node;
+        } else {
+            cur_head = &min_node;
+        }
     }
 }
+*/
+
+void q_bubble_sort(queue_t *q)
+{
+    for (int i = 1; i < q->size; i++) {
+        list_ele_t **pre_next = &q->head;
+        list_ele_t *cur = q->head;
+        list_ele_t *next = cur->next;
+        for (int j = i; j < q->size; j++) {
+            if (strcmp(cur->value, next->value) > 0) {
+                (*pre_next) = next;
+                cur->next = next->next;
+                next->next = cur;
+                pre_next = &next->next;
+
+                next = cur->next;
+            } else {
+                pre_next = &cur->next;
+                cur = next;
+                next = cur->next;
+            }
+        }
+    }
+
+    list_ele_t *cur = q->head;
+    while (cur->next != NULL) {
+        cur = cur->next;
+    }
+
+    q->tail = cur;
+}
+
 
 /*
  * Sort elements of queue in ascending order
@@ -162,6 +285,6 @@ void q_sort(queue_t *q)
 {
     if (q == NULL || q->size <= 1)
         return;
-
-    // bubble sort
+    // q_insertion_sort(q);
+    q_bubble_sort(q);
 }
